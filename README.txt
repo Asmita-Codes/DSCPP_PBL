@@ -110,12 +110,3 @@ WHAT IS TESTED
   NOT tested here: the real SFML library calls and real fullscreen. Please run
   the game once on your PC and report the first compiler error, if any.
 
-
-EVALUATION IDEAS FOR YOUR REPORT / VIVA
---------------------------------------------------------------------------
-  1. BFS vs Dijkstra: press B and compare the timings in the sidebar; run
-     game.exe --demo to see a map where Dijkstra finds the cheaper route.
-  2. Path time with 5 zombies vs 50 (higher difficulty, later waves).
-  3. How does the noise system change how you must play? (rifle vs pistol)
-  4. Why can a fully sealed player still be reached? (barricade health)
-  5. Which logic files would you reuse unchanged if you replaced SFML by another library?
