@@ -165,11 +165,11 @@ Because the logic files never include SFML, the game rules can be tested without
 ---
 
 ## Team
+ASMITA : GUI and application flow
+NEHA NEGI : Navigation and game logic
+LAKSHYA GUSAIN : Data Management and Testing
+FATIMA SUGHRA : Core Structure
 
-1. ASMITA : GUI and application flow
-2. NEHA NEGI : Navigation and game logic
-3. LAKSHYA GUSAIN : Data Management and Testing
-4. FATIMA SUGHRA : Core Structure
 
 Graphic Era — Project Based Learning (PBL)
 
