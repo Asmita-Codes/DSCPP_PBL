@@ -1,0 +1,4 @@
+font.ttf is DejaVu Sans (https://dejavu-fonts.github.io/).
+DejaVu fonts are free to use and redistribute under the Bitstream Vera /
+DejaVu license: https://dejavu-fonts.github.io/License.html
+You can replace font.ttf with any other .ttf file.
