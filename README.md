@@ -174,8 +174,6 @@ FATIMA SUGHRA : Core Structure
 Graphic Era — Project Based Learning (PBL)
 
 ---
-
 ## License and Credits
-
 - Built with [SFML](https://www.sfml-dev.org/).
 - The font license is in `assets/FONT_LICENSE.txt`.
