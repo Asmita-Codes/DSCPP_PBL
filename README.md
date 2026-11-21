@@ -1,179 +1,333 @@
-# Dynamic Navigation and Entity Management System
+# Dynamic Navigation and Entity Management System (SDL2)
 
-A 2D top-down zombie survival game written in **C++17** with **SFML 3**.
-The player fights through a three-mission campaign in a city whose road network is a **graph that changes while you play**: placing or destroying barricades edits the graph, and every zombie re-plans its route using **BFS** or **Dijkstra's algorithm**.
+A zombie survival campaign written in **C++17** with **SDL2** and **SDL2_ttf**. Under the game sits a set of hand-written data structures and a city modelled as a graph, so the project doubles as a working demonstration of BFS, Dijkstra, queues, heaps, stacks, linked lists and binary search trees in a real-time setting.
 
-The project was built to demonstrate hand-written data structures (graph, queue, priority queue / min-heap, linked list, stack, binary search tree) inside a real-time game.
+The core idea is *dynamic navigation*: every barricade the player places or removes edits the city graph at runtime, and every zombie re-plans its route with the selected algorithm (BFS or Dijkstra) when the graph changes.
 
-
-## Features
-
-- **Full-screen gameplay** with a compact HUD along the bottom edge: Health, Weapon, Ammo, Medkits, Grenades, Score and Level, all read live from the game state.
-- **Dynamic navigation**: the city is a tile graph (adjacency list). Barricades add or remove edges at runtime, and zombies recompute their paths.
-- **Two pathfinding algorithms**: BFS (fewest steps, ignores terrain cost) and Dijkstra (cheapest route, walks around rubble). Press **B** to switch.
-- **Five zombie types**: Walker, Runner (fast, weak), Tank (slow, tough), Spitter (keeps its distance and spits acid), and a **Boss** that charges.
-- **Noise system**: gunshots and explosions are heard. Zombies within earshot start hunting you even outside their sight range (the rifle is louder than the pistol).
-- **Destructible barricades**: a zombie with no route to you walks to the nearest barricade and chews through it.
-- **Combo scoring**: kills within 3 seconds of each other build a multiplier up to x5.
-- **Survival timer** in Level 3, shown on screen and paused whenever the game is paused.
-- Grenades with friendly fire, sprinting with stamina, a flashlight, air drops, rubble that slows movement, three difficulty levels, three bonus objectives per mission, undo, save/load and a persistent leaderboard.
+![Gameplay](screenshots/play1.png)
 
 ---
 
-## The Campaign
+## Contents
 
-| Level | Mission | Objective |
-|---|---|---|
-| 1 | SAFE ZONE | Reach the safe zone. |
-| 2 | FUEL RUN | Collect 3 fuel cans (the yellow route guides you to the nearest one), then reach the Evacuation Point. |
-| 3 | LAST STAND | Survive 75 seconds (a Boss arrives), then reach the Helipad. |
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Building and running](#building-and-running)
+- [Controls](#controls)
+- [Gameplay](#gameplay)
+- [Data structures and algorithms](#data-structures-and-algorithms)
+- [Architecture](#architecture)
+- [Pathfinding demo (BFS vs Dijkstra)](#pathfinding-demo-bfs-vs-dijkstra)
+- [Customising audio and fonts](#customising-audio-and-fonts)
+- [Generated files](#generated-files)
+- [Evaluation ideas](#evaluation-ideas)
+- [Known limitations](#known-limitations)
+- [Credits](#credits)
 
-Score, kills and health carry over between missions.
+---
 
-### Scoring
+## Features
 
-- Killing a zombie gives that zombie's points multiplied by the current combo multiplier (x1 to x5).
-- Each pickup collected: +25.
-- Each bonus objective completed: +200.
-- Completing a mission: +500, plus a time bonus (300 minus the seconds spent, never below 0), plus 100 × the mission number (counting from 0).
+**Gameplay**
+- Three-mission campaign (Safe Zone, Fuel Run, Last Stand) with a boss wave in the final mission.
+- Five zombie types (Walker, Runner, Tank, Spitter, Boss) with different speed, health, damage and score values.
+- Barricades with durability: zombies can chew through them, so a fully sealed player can still be reached.
+- Noise system (the rifle draws more attention than the pistol), sprint with stamina, grenades that also hurt the player, medkits, flashlight, air drops, rubble, combo score multiplier (up to ×5).
+- Three difficulty levels and three bonus objectives per mission.
+- Undo for barricade actions, save/load, and a persistent leaderboard.
+- **2-player local co-op** on one computer, with shared inventory, a downed/revive mechanic and a camera leash. Player 2 can use the keyboard or a gamepad.
+
+**Presentation**
+- Hardware-accelerated SDL2 renderer; a 1280×720 canvas letterboxed to any screen, with text rendered at native resolution so it stays sharp on 1080p and 4K.
+- Night lighting through a light map: street lamps, flashlight beam, muzzle flashes, explosions, glowing acid and pickups.
+- **All textures are generated in code at start-up** (`Art.cpp`): roads, pavements, rooftops, shadows, character and zombie sprites, pickups and barricades.
+- Visual effects: tracers, shell casings, blood, corpses, fire and smoke, sparks, screen shake and floating score text.
+- **Four original songs and all sound effects are synthesised in code** (`Music.cpp`, `Audio.cpp`), with positional (panned, distance-attenuated) sound. No audio files are required.
+
+---
+
+## Screenshots
+
+| Main menu | Multiplayer setup |
+|---|---|
+| ![Main menu](screenshots/menu.png) | ![Multiplayer screen](screenshots/mp.png) |
+
+| Single player | Co-op |
+|---|---|
+| ![Single-player gameplay](screenshots/play1.png) | ![Co-op gameplay](screenshots/coop1.png) |
+
+---
+
+## Building and running
+
+### Requirements
+
+- A C++17 compiler (GCC/MinGW-w64 tested via MSYS2)
+- SDL2 and SDL2_ttf development libraries
+- The `assets/` folder must sit next to the executable (it holds the fonts)
+
+### Windows (one-click)
+
+1. Install [MSYS2](https://www.msys2.org) once, in the default folder `C:\msys64`.
+2. Double-click **`build_and_run.bat`**. On the first run it:
+   - installs GCC, SDL2 and SDL2_ttf through `pacman` if they are missing (needs internet),
+   - builds `game.exe`,
+   - copies the required DLLs next to `game.exe`,
+   - starts the game.
+3. Afterwards, launch with `game.exe` or `run.bat`.
+
+If MSYS2 is installed somewhere else, edit the `set MSYS=` line at the top of `build_and_run.bat`.
+
+### Windows (manual, MSYS2 UCRT64 terminal)
+
+```bash
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-SDL2_ttf
+g++ -std=c++17 -O2 *.cpp -o game.exe -lSDL2_ttf -lSDL2 -static-libgcc -static-libstdc++
+./game.exe
+```
+
+### Linux (Debian/Ubuntu)
+
+```bash
+sudo apt install libsdl2-dev libsdl2-ttf-dev
+g++ -std=c++17 -O2 *.cpp -o game $(sdl2-config --cflags --libs) -lSDL2_ttf
+./game
+```
+
+### CMake
+
+```bash
+cmake -B build
+cmake --build build
+./build/game
+```
+
+The CMake build copies `assets/` next to the executable automatically. It relies on `find_package(SDL2_ttf)`, which needs an SDL2_ttf installation that ships a CMake config file; on older distributions that do not, use the `g++` command above instead.
+
+### Command-line options
+
+| Option | Effect |
+|---|---|
+| *(none)* | Start in fullscreen |
+| `--windowed` | Start in a window |
+| `--demo` | Run the console BFS vs Dijkstra demo (no window) |
 
 ---
 
 ## Controls
 
-| Key / Button | Action |
+### Player 1 (keyboard + mouse)
+
+| Key | Action |
 |---|---|
-| `W A S D` / Arrow keys | Move |
+| `W A S D` / arrow keys | Move (in co-op, the arrow keys belong to player 2) |
 | `Shift` | Sprint (uses stamina) |
 | Left mouse | Shoot |
 | Right mouse | Place / remove a barricade on a road tile |
-| `1` / `2` | Switch to Rifle / Pistol |
-| `3` | Use a medkit |
-| `E` | Throw a grenade at the mouse position (it can hurt you too) |
-| `5` or `F` | Flashlight on/off |
-| `U` | Undo the last barricade action |
+| `1` / `2` | Rifle / Pistol |
+| `E` | Throw grenade at the mouse cursor (can hurt you) |
+| `3` | Use medkit |
+| `5` or `F` | Toggle flashlight |
+| `U` | Undo last barricade action |
 | `B` | Switch zombie AI between BFS and Dijkstra |
-| `Tab` | Show every zombie's current path |
-| `F5` / `F9` | Save / Load |
-| `Esc` or `P` | Pause / resume |
-| `M` (while paused) | Return to the main menu |
-| `Enter` | Start / next mission / play again |
+| `Tab` | Show every zombie's path |
+| `F5` / `F9` | Save / load (single-player only) |
 | `F11` | Toggle fullscreen |
+| `F12` | Screenshot (`screenshot_001.bmp`, …) |
+| `N` | Next song (cycles the four songs, then music off) |
+| `X` | Sound effects on/off (off at start) |
+| `Esc` or `P` | Pause (`M` in pause returns to the main menu) |
+| `Enter` | Start / next mission / play again |
 
-### Main menu
+### Player 2 (co-op, keyboard)
 
-Start Campaign, Continue (load a save) / **Resume Game** (when a game is in progress), Difficulty, Leaderboard, How to Play, Fullscreen and Exit.
+| Key | Action |
+|---|---|
+| Arrow keys | Move |
+| `Right Ctrl` or `Num 0` | Shoot (aim locks on to the nearest zombie in front) |
+| `Right Shift` | Sprint |
+| `,` or `Num 3` | Switch weapon |
+| `/` or `Num 1` | Throw grenade |
+| `.` or `Num 2` | Use medkit |
+| `Enter` | Place / remove barricade in front |
 
----
+### Player 2 (co-op, gamepad)
 
-## Building and Running (Windows)
-
-### 1. Install the tools
-
-Install [MSYS2](https://www.msys2.org/), open the **MSYS2 UCRT64** terminal and run:
-
-```bash
-pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-sfml
-```
-
-SFML **3** is required.
-
-### 2. Build
-
-In the MSYS2 UCRT64 terminal, go to the project folder (the one containing `App.cpp` and `main.cpp`) and run:
-
-```bash
-g++ -std=c++17 -O2 *.cpp -o game.exe -lsfml-graphics -lsfml-window -lsfml-system -static-libgcc -static-libstdc++
-```
-
-Or simply double-click **`build_and_run.bat`**. It builds and starts the game. If MSYS2 is not installed in `C:\msys64`, edit the PATH line at the top of the file.
-
-### 3. Run
-
-```bash
-./game.exe              # starts in fullscreen
-./game.exe --windowed   # starts in a window
-./game.exe --demo       # console demo: BFS vs Dijkstra (no window)
-```
-
-Run the game from the project folder so it can find `assets/font.ttf`. If the font is missing, it falls back to Windows Arial.
+| Input | Action |
+|---|---|
+| Left stick / right stick | Move / aim |
+| `RT` or `A` | Shoot |
+| `LB` (or `LT`) | Sprint |
+| `B` | Grenade |
+| `X` | Medkit |
+| `Y` | Switch weapon |
+| `RB` | Barricade |
+| `Start` | Pause |
 
 ---
 
-## Data Structures
+## Gameplay
 
-All data structures are written by hand. None of them use the STL container they imitate.
+### Campaign
 
-| Structure | File | Used for |
+| # | Mission | Objective |
 |---|---|---|
-| Graph (adjacency list) | `Graph.h/.cpp` | City map, BFS and Dijkstra, editing the map at runtime |
-| Queue (circular array) | `Queue.h/.cpp` | Zombie wave queue, BFS frontier |
-| Priority queue (binary min-heap) | `PriorityQueue.h/.cpp` | Most dangerous zombie first, Dijkstra |
-| Singly linked list | `Inventory.h/.cpp` | Player inventory |
-| Stack | `ActionStack.h/.cpp` | Undo for barricade actions |
-| Binary search tree | `Leaderboard.h/.cpp` | Leaderboard (stored in `leaderboard.txt`) |
+| 1 | **Safe Zone** | Reach the safe zone. |
+| 2 | **Fuel Run** | Collect 3 fuel cans (arrows point to the nearest), then reach the Evacuation Point. |
+| 3 | **Last Stand** | Survive 75 seconds while a boss arrives, then reach the Helipad. |
+
+Each mission also has three bonus objectives: kill 10 zombies, collect 3 pickups, and place 2 barricades.
+
+### Zombie types
+
+Base values on Normal difficulty (Easy and Hard scale speed, damage and wave size).
+
+| Type | HP | Speed | Damage | Points | Notes |
+|---|---|---|---|---|---|
+| Walker | 3 | 70 | 15 | 100 | Standard |
+| Runner | 2 | 115 | 10 | 150 | Fast, fragile |
+| Tank | 8 | 48 | 30 | 300 | Slow, heavy hitter |
+| Spitter | 3 | 60 | 8 | 200 | Ranged acid attack |
+| Boss | 30 | 52 | 45 | 1500 | Appears in Last Stand |
+
+### Starting inventory
+
+Rifle 60 · Pistol 30 · Medkit 2 · Grenade 2 · Barrier 5 · Torch 1
+
+### Co-op rules
+
+- Ammo, medkits, grenades and barriers are shared; so are the score and mission progress.
+- Zombies hunt whichever living player is closer.
+- A player at 0 health is **down**. The partner revives them by standing nearby for 2.5 s (they return with 35 health).
+- The run ends only when both players are down.
+- A leash keeps both players on one screen.
+- Save/load is disabled in co-op. Co-op runs are recorded on the leaderboard as "Co-op Team".
 
 ---
 
-## Project Structure
+## Data structures and algorithms
 
-**Game logic (no SFML in these files)**
+The queue, heap, stack, linked list and BST are hand-written with raw arrays or pointers rather than STL containers; the graph stores its adjacency list in `std::vector`.
 
-| File | Purpose |
-|---|---|
-| `GameTypes.h` | Vectors, constants, enums, save record |
-| `Entities.h` | Zombie, Pickup, Bullet, Acid, Grenade, Explosion, Input, Status |
-| `Game.h/.cpp` | All game rules: movement, waves, AI, combat, noise, combo, barricade damage, mission flow |
-| `Mission.h/.cpp` | Campaign table (mission definitions) and mission progress |
-| `GameSave.h/.cpp` | Save / load with validation |
-| `PathfindingDemo.cpp` | Console demo comparing BFS and Dijkstra |
+| Structure / algorithm | File | Used for |
+|---|---|---|
+| Graph (adjacency list) | `Graph.h/.cpp` | The city: 60×40 tiles, nodes = tiles, edges = walkable neighbours. Road costs 1, rubble costs 3. Edges are rebuilt locally whenever a tile changes. |
+| BFS | `Graph.cpp` | Fewest-steps path; frontier stored in the hand-written `Queue`. |
+| Dijkstra | `Graph.cpp` | Cheapest path on weighted edges; frontier stored in the hand-written `PriorityQueue`. Default zombie AI. |
+| Circular-array queue (FIFO) | `Queue.h/.cpp` | BFS frontier and the zombie wave queue. Grows dynamically; implements the Rule of Three. |
+| Binary min-heap | `PriorityQueue.h/.cpp` | Dijkstra frontier and the threat queue (most dangerous zombie first). |
+| Stack (LIFO) | `ActionStack.h/.cpp` | Undo history of barricade placements and removals. |
+| Singly linked list | `Inventory.h/.cpp` | Player inventory (named items with counts). |
+| Binary search tree | `Leaderboard.h/.cpp` | Leaderboard keyed by score; reverse in-order traversal gives highest first. Persisted with C file I/O. |
+| Text serialisation | `GameSave.h/.cpp` | Save/load. The file is fully parsed into a `SaveData` before anything is applied, so a corrupt file never half-loads. |
 
-**SFML (drawing and input; these only read the game state)**
+The game records the average time per path query for both algorithms (exponential moving average, in microseconds) and shows it under the minimap, which makes live BFS vs Dijkstra comparisons possible while playing.
 
-| File | Purpose |
-|---|---|
-| `Gfx.h/.cpp` | Window, fullscreen, letterboxing, drawing helpers |
-| `Renderer.h/.cpp` | City, entities, minimap |
-| `Screens.h/.cpp` | Main menu, leaderboard, help screen |
-| `App.h/.cpp` | Event loop, input, screen switching, full-screen gameplay HUD, Level 3 survival timer |
-| `main.cpp` | Entry point (`--windowed`, `--demo`) |
+---
 
-**How the pieces fit**
+## Architecture
+
+The project is split into a **logic layer** that contains no graphics code at all and a **presentation layer** that only reads the game state.
 
 ```
-keyboard / mouse -> App -> Input -> Game::update(dt, input)
-Game (read-only) -> Renderer / Screens / App HUD -> Gfx -> SFML window
+keyboard / mouse / gamepad
+        │
+        ▼
+      App ──► Input ──► Game::update(dt, input)          (rules, AI, data structures)
+                              │  read-only
+                              ▼
+                             Fx  (diffs this frame against the last one to detect events)
+                         ┌────┴─────────────┐
+                         ▼                  ▼
+              Renderer / Screens        sound cues
+                         │                  │
+                         ▼                  ▼
+                        Gfx ──► SDL2     Audio ──► SDL2 audio device
 ```
 
-Because the logic files never include SFML, the game rules can be tested without opening a window.
+The `Game` class has no event callbacks. Instead, `Fx` keeps a snapshot of the previous frame and compares it with the current one: a bullet that vanished early is an impact, a zombie missing from the list has died, an explosion whose timer equals `dt` has just gone off. The rules never know the graphics exist.
 
-**Earlier C version (not part of the current build)**
+This separation was tested in practice: the logic files were carried over unchanged when the project moved from SFML to SDL2. Only `Game.cpp` was later extended, for co-op, and single-player behaviour was checked to be bit-for-bit identical for the same scripted input.
 
-`graph.c`, `inventory.c`, `leaderboard.c`, `priority_queue.c`, `zombie_queue.c`, `action_stack.c`, `save_load.c` and their headers (`game_types.h`, `priority_queue.h`, `zombie_queue.h`, `action_stack.h`, `save_load.h`) belong to an earlier C version of the project. The build command above compiles only the `.cpp` files, so these are kept for reference only.
+### File map
 
-> **Note:** `CMakeLists.txt` also belongs to the earlier version and does not build the current game. Use the `g++` command or `build_and_run.bat` instead.
+**Logic (no graphics library)**
 
----
-
-## Generated Files
-
-| File | Created by |
+| File | Responsibility |
 |---|---|
-| `savegame.txt` | `F5` (save) |
-| `leaderboard.txt` | Finishing or losing a run |
+| `GameTypes.h` | Shared types, world constants, enums, save-file records |
+| `Entities.h` | Zombie, pickup, bullet, grenade, explosion and input structs |
+| `Game.h/.cpp` | All game rules: movement, combat, waves, zombie AI, noise, barricades, co-op |
+| `Mission.h/.cpp` | Campaign definitions and progress |
+| `Graph.h/.cpp` | City graph, BFS, Dijkstra |
+| `Queue.h/.cpp`, `PriorityQueue.h/.cpp`, `ActionStack.h/.cpp`, `Inventory.h/.cpp`, `Leaderboard.h/.cpp` | Data structures |
+| `GameSave.h/.cpp` | Save/load |
+| `PathfindingDemo.cpp` | Console BFS vs Dijkstra demo |
+
+**Presentation (SDL2)**
+
+| File | Responsibility |
+|---|---|
+| `SdlInc.h` | Includes SDL2 / SDL2_ttf regardless of install layout |
+| `Gfx.h/.cpp` | Window, fullscreen, letterboxing, shapes, cached text, widgets, screenshots |
+| `Art.h/.cpp` | Procedural textures (noise + anti-aliased signed-distance shapes) |
+| `Fx.h/.cpp` | Visual effects and sound cues via frame diffing |
+| `Audio.h/.cpp` | Sound synthesis, mixer, positional playback, background song composer |
+| `Music.h/.cpp` | The four songs: step sequencer, synthesisers, effects |
+| `Renderer.h/.cpp` | Camera, world drawing, light map, minimap, menu backdrop |
+| `Screens.h/.cpp` | HUD bar, menus, leaderboard, help, overlays, toasts |
+| `App.h/.cpp` | Event loop, input mapping, screen switching |
+| `main.cpp` | Entry point and command-line options |
+
+**Other**
+
+| Path | Contents |
+|---|---|
+| `assets/` | Fonts (`ui.ttf`, `title.ttf`, `font.ttf`), font licences, optional `sfx/` overrides |
+| `screenshots/` | Images used in this README |
+| `legacy_c_modules/` | Earlier C11 versions of the data structures. **Not part of the current build.** |
+| `CMakeLists.txt`, `build_and_run.bat`, `run.bat` | Build and launch scripts |
 
 ---
 
-## Team
-ASMITA : GUI and application flow
-NEHA NEGI : Navigation and game logic
-LAKSHYA GUSAIN : Data Management and Testing
-FATIMA SUGHRA : Core Structure
+## Pathfinding demo (BFS vs Dijkstra)
 
+`PathfindingDemo.cpp` compares the two algorithms on a small hand-made map where the shortest route (by steps) crosses rubble and the cheapest route does not.
 
-Graphic Era — Project Based Learning (PBL)
+Run it from the game:
+
+```bash
+game.exe --demo
+```
+
+Or build it on its own, without SDL2:
+
+```bash
+g++ -std=c++17 -DPATHFINDING_DEMO_MAIN PathfindingDemo.cpp Graph.cpp Queue.cpp PriorityQueue.cpp -o demo
+./demo
+```
+
+It runs three scenarios:
+
+1. **Original map.** BFS takes the top corridor (15 steps, cost 21, crosses 3 rubble tiles). Dijkstra takes the bottom corridor (17 steps, cost 17). BFS minimises steps; Dijkstra minimises cost.
+2. **Barricade added.** The top route is blocked, both algorithms re-route and agree (17 steps, cost 17). This is dynamic navigation in miniature.
+3. **Goal sealed.** Both report that no route exists.
+
+Timings (µs per call) are also printed; they depend on the machine.
 
 ---
-## License and Credits
-- Built with [SFML](https://www.sfml-dev.org/).
-- The font license is in `assets/FONT_LICENSE.txt`.
+
+
+## Known limitations
+
+- Save/load is single-player only.
+- Co-op is local only (one computer); there is no network play.
+- The game starts in fullscreen by default; use `--windowed` or `F11` if that is inconvenient.
+
+---
+
+## Credits
+
+- **Fonts:** Poppins Medium and Poppins Bold by Indian Type Foundry (SIL Open Font License 1.1); DejaVu Sans (Bitstream Vera / DejaVu license). See `assets/FONT_LICENSE.txt`.
+- **Libraries:** [SDL2](https://www.libsdl.org) and [SDL2_ttf](https://github.com/libsdl-org/SDL_ttf).
+- All textures, music and sound effects are generated procedurally by the project's own code.

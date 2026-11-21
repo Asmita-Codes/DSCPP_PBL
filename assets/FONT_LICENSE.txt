@@ -1,0 +1,6 @@
+ui.ttf     = Poppins Medium   (Indian Type Foundry)  - SIL Open Font License 1.1
+title.ttf  = Poppins Bold     (Indian Type Foundry)  - SIL Open Font License 1.1
+             https://fonts.google.com/specimen/Poppins  /  https://openfontlicense.org
+font.ttf   = DejaVu Sans  - Bitstream Vera / DejaVu license
+             https://dejavu-fonts.github.io/License.html
+All three may be used and redistributed freely. You can replace any of them with another .ttf file.
